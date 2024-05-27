@@ -3,6 +3,7 @@ import { z } from 'zod'
 import fs from 'fs/promises'
 import db from '@/db/db'
 import { notFound, redirect } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
 
 const fileSchema = z.instanceof(File, { message: 'Required' })
 const imageSchema = fileSchema.refine(
@@ -57,6 +58,8 @@ export const addProduct = async (prevState: unknown, formData: FormData) => {
     },
   })
 
+  revalidatePath('/')
+  revalidatePath('/products')
   redirect('/admin/products')
 }
 
@@ -118,6 +121,8 @@ export const UpdateProduct = async (
     },
   })
 
+  revalidatePath('/')
+  revalidatePath('/products')
   redirect('/admin/products')
 }
 
@@ -129,6 +134,9 @@ export const toggleProductAvailability = async (
     where: { id },
     data: { isAvailableForPurchase },
   })
+
+  revalidatePath('/')
+  revalidatePath('/products')
 }
 
 export const deleteProduct = async (id: string) => {
@@ -141,4 +149,7 @@ export const deleteProduct = async (id: string) => {
   // delete files
   await fs.unlink(product.filePath)
   await fs.unlink(`public${product.imagePath}`)
+
+  revalidatePath('/')
+  revalidatePath('/products')
 }

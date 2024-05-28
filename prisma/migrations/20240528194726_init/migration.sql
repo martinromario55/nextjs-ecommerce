@@ -39,3 +39,6 @@ CREATE TABLE "DownloadVerification" (
     "productId" TEXT NOT NULL,
     CONSTRAINT "DownloadVerification_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_email_key" ON "User"("email");

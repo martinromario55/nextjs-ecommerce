@@ -1,11 +1,11 @@
 import db from '@/db/db'
 import { NextRequest, NextResponse } from 'next/server'
-import { Resend } from 'resend'
 import Stripe from 'stripe'
+import { Resend } from 'resend'
+import PurchaseReceiptEmail from '@/email/PurchaseReceipt'
 
-const stripe = new Stripe(process.env.STRIPE_SECRETE_KEY as string)
-
-const resend = new Resend(process.env.RESEND_API_KEY)
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string)
+const resend = new Resend(process.env.RESEND_API_KEY as string)
 
 export async function POST(req: NextRequest) {
   const event = await stripe.webhooks.constructEvent(
@@ -20,19 +20,15 @@ export async function POST(req: NextRequest) {
     const email = charge.billing_details.email
     const pricePaidInCents = charge.amount
 
-    // Find product in the database
     const product = await db.product.findUnique({ where: { id: productId } })
-
     if (product == null || email == null) {
       return new NextResponse('Bad Request', { status: 400 })
     }
-    console.log('We get here')
-    // Create a new user order
+
     const userFields = {
       email,
       orders: { create: { productId, pricePaidInCents } },
     }
-
     const {
       orders: [order],
     } = await db.user.upsert({
@@ -42,11 +38,10 @@ export async function POST(req: NextRequest) {
       select: { orders: { orderBy: { createdAt: 'desc' }, take: 1 } },
     })
 
-    // Send receipt via email
     const downloadVerification = await db.downloadVerification.create({
       data: {
         productId,
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24),
       },
     })
 
@@ -54,9 +49,15 @@ export async function POST(req: NextRequest) {
       from: `Support <${process.env.SENDER_EMAIL}>`,
       to: email,
       subject: 'Order Confirmation',
-      html: '<h1>Payment was successful</h1>',
+      react: (
+        <PurchaseReceiptEmail
+          order={order}
+          product={product}
+          downloadVerificationId={downloadVerification.id}
+        />
+      ),
     })
   }
 
-  return new NextResponse('hi')
+  return new NextResponse()
 }
